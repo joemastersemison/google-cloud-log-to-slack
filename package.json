@@ -1,0 +1,28 @@
+{
+  "name": "log-to-slack",
+  "version": "1.0.0",
+  "description": "Automate GCP error log forwarding from Cloud Functions and Cloud Run Jobs to Slack.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "gcp",
+    "logging",
+    "slack",
+    "firebase",
+    "cloud-functions",
+    "cloud-run",
+    "monitoring"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "@slack/webhook": "^7.0.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}
