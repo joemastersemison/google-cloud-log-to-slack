@@ -68,6 +68,14 @@ node index.js
 node deploy.js
 ```
 
+### 4. Check
+
+```bash
+node check.js
+```
+
+will make sure that each project in projects.json is properly set up.
+
 ---
 
 ## 🔐 IAM Permissions Needed

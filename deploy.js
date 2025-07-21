@@ -15,6 +15,43 @@ if (!webhook) {
 const projects = JSON.parse(fs.readFileSync("projects.json", "utf8"));
 
 projects.forEach((projectId) => {
+  try {
+    console.log(
+      `👷 Forcing creation of gcp-sa-pubsub service account by creating dummy push subscription...`
+    );
+    execSync(
+      `gcloud pubsub subscriptions create temp-sub-${projectId} --topic=${topic} --push-endpoint=https://example.com/push --push-auth-token-audience=https://example.com`,
+      { stdio: "pipe" }
+    );
+    execSync(`gcloud pubsub subscriptions delete temp-sub-${projectId}`, {
+      stdio: "pipe",
+    });
+  } catch (e) {
+    console.warn(
+      `⚠️ Ignoring dummy push setup error (may already exist): ${e.message}`
+    );
+  }
+
+  const projectNumber = execSync(
+    `gcloud projects describe ${projectId} --format="value(projectNumber)"`
+  )
+    .toString()
+    .trim();
+
+  const pubsubServiceAgent = `serviceAccount:service-${projectNumber}@gcp-sa-pubsub.iam.gserviceaccount.com`;
+
+  try {
+    console.log(
+      `🔐 Granting roles/iam.serviceAccountTokenCreator to ${pubsubServiceAgent}`
+    );
+    execSync(
+      `gcloud projects add-iam-policy-binding ${projectId} --member="${pubsubServiceAgent}" --role="roles/iam.serviceAccountTokenCreator"`,
+      { stdio: "inherit" }
+    );
+  } catch (err) {
+    console.warn(`⚠️ Failed to assign IAM role: ${err.message}`);
+  }
+
   console.log(`\n🚀 Deploying function to project: ${projectId}`);
   try {
     execSync(`gcloud config set project ${projectId}`, { stdio: "inherit" });
