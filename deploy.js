@@ -15,28 +15,55 @@ if (!webhook) {
 const projects = JSON.parse(fs.readFileSync("projects.json", "utf8"));
 
 projects.forEach((projectId) => {
-  try {
-    console.log(
-      `👷 Forcing creation of gcp-sa-pubsub service account by creating dummy push subscription...`
-    );
-    execSync(
-      `gcloud pubsub subscriptions create temp-sub-${projectId} --topic=${topic} --push-endpoint=https://example.com/push --push-auth-token-audience=https://example.com`,
-      { stdio: "pipe" }
-    );
-    execSync(`gcloud pubsub subscriptions delete temp-sub-${projectId}`, {
-      stdio: "pipe",
-    });
-  } catch (e) {
-    console.warn(
-      `⚠️ Ignoring dummy push setup error (may already exist): ${e.message}`
-    );
-  }
-
+  // Get project number
   const projectNumber = execSync(
     `gcloud projects describe ${projectId} --format="value(projectNumber)"`
   )
     .toString()
     .trim();
+
+  try {
+    console.log(`⚙️ Enabling service identity for pubsub.googleapis.com...`);
+    execSync(
+      `gcloud beta services identity create --service=pubsub.googleapis.com --project=${projectId}`,
+      { stdio: "inherit" }
+    );
+  } catch (e) {
+    console.warn(`⚠️ Service identity may already exist: ${e.message}`);
+  }
+
+  // Force creation of Pub/Sub agent
+  try {
+    console.log(
+      `👷 Forcing creation of gcp-sa-pubsub service agent via push subscription...`
+    );
+    execSync(
+      `gcloud pubsub subscriptions create ensure-pubsub-agent-${projectId} --topic=${topic} --push-endpoint=https://example.com --push-auth-token-audience=https://example.com`,
+      { stdio: "pipe" }
+    );
+    execSync(
+      `gcloud pubsub subscriptions delete ensure-pubsub-agent-${projectId}`,
+      { stdio: "pipe" }
+    );
+  } catch (e) {
+    console.warn(
+      `⚠️ Pub/Sub agent creation workaround may have already been triggered: ${e.message}`
+    );
+  }
+
+  // Assign token creator role
+  const pubsubAgent = `service-${projectNumber}@gcp-sa-pubsub.iam.gserviceaccount.com`;
+  try {
+    console.log(
+      `🔐 Granting roles/iam.serviceAccountTokenCreator to ${pubsubAgent}`
+    );
+    execSync(
+      `gcloud projects add-iam-policy-binding ${projectId} --member="serviceAccount:${pubsubAgent}" --role="roles/iam.serviceAccountTokenCreator"`,
+      { stdio: "inherit" }
+    );
+  } catch (e) {
+    console.error(`❌ Failed to assign token creator role: ${e.message}`);
+  }
 
   const pubsubServiceAgent = `serviceAccount:service-${projectNumber}@gcp-sa-pubsub.iam.gserviceaccount.com`;
 
